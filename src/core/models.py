@@ -18,6 +18,13 @@ class Message:
     receiver: str
     body: str
 
+@dataclass
+class Chunk:
+    id: str                      # e.g., "chunk_m1"
+    text: str                    # XML format preserved: <sender.../><receiver.../><body>...</body>
+    metadata: dict               # {sender, receiver, message_id, chapter_id (optional)}
+    source_message_ids: List[str] # ["m1"] - for traceability
+    
 
 @dataclass(frozen=True)
 class RetrievedContext:
@@ -27,7 +34,6 @@ class RetrievedContext:
     """
     text: str
     source_message_ids: List[str] #metadata
-
 
 @dataclass(frozen=True)
 class Answer:
