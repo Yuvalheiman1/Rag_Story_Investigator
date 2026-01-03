@@ -63,19 +63,19 @@ def test_chunk_id_format_is_correct(chunker, single_message):
     assert result[0].id == "chunk_m1"
 
 
-def test_chunk_text_includes_sender_tag(chunker, single_message):
+def test_chunk_text_includes_sender(chunker, single_message):
     result = chunker.chunk_messages([single_message])
-    assert "<sender ref=\"marcus\"/>" in result[0].text
+    assert "marcus" in result[0].text
 
 
-def test_chunk_text_includes_receiver_tag(chunker, single_message):
+def test_chunk_text_includes_receiver(chunker, single_message):
     result = chunker.chunk_messages([single_message])
-    assert "<receiver ref=\"alex\"/>" in result[0].text
+    assert "alex" in result[0].text
 
 
-def test_chunk_text_includes_body_tag(chunker, single_message):
+def test_chunk_text_includes_body(chunker, single_message):
     result = chunker.chunk_messages([single_message])
-    assert "<body>Bring the USB drive tonight</body>" in result[0].text
+    assert "Bring the USB drive tonight" in result[0].text
 
 
 # Metadata Tests
@@ -164,3 +164,28 @@ def test_custom_max_chunk_size_parameter_works():
     message = Message(id="m1", sender="a", receiver="b", body="x" * 2000)
     result = chunker.chunk_messages([message])
     assert len(result) == 1
+
+
+# Format Tests
+def test_chunk_text_uses_natural_language_format(chunker, single_message):
+    result = chunker.chunk_messages([single_message])
+    text = result[0].text
+    assert "marcus to alex:" in text.lower() or ("marcus" in text and "alex" in text)
+
+
+def test_chunk_text_is_concise(chunker, single_message):
+    result = chunker.chunk_messages([single_message])
+    # Natural format should be shorter than XML tags
+    assert len(result[0].text) < 100
+
+
+def test_chunk_with_none_sender_uses_unknown(chunker):
+    message = Message(id="m1", sender=None, receiver="bob", body="Test message")
+    result = chunker.chunk_messages([message])
+    assert "unknown" in result[0].text.lower()
+
+
+def test_chunk_with_none_receiver_uses_unknown(chunker):
+    message = Message(id="m1", sender="alice", receiver=None, body="Test message")
+    result = chunker.chunk_messages([message])
+    assert "unknown" in result[0].text.lower()
