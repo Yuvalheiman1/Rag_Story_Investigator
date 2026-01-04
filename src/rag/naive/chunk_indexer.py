@@ -177,7 +177,7 @@ class ChunkIndexer:
 
 if __name__ == "__main__":
     from src.core.models import Message
-    from src.core.chunker import MessageChunker
+    from src.rag.naive.chunker import MessageChunker
     
     print("=" * 70)
     print("ChunkIndexer - Simple Manual Test")
