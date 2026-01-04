@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Optional
 from abc import ABC, abstractmethod
+import numpy as np
+
 
 
 # -------------------------
@@ -24,8 +26,13 @@ class Chunk:
     text: str                    # XML format preserved: <sender.../><receiver.../><body>...</body>
     metadata: dict               # {sender, receiver, message_id, chapter_id (optional)}
     source_message_ids: List[str] # ["m1"] - for traceability
-    
+    embedding: Optional[np.ndarray] = None  # Add this field!
 
+@dataclass
+class SearchResult:
+    chunk: Chunk
+    score: float
+    
 @dataclass(frozen=True)
 class RetrievedContext:
     """
