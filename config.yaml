@@ -1,0 +1,53 @@
+# RAG Story Investigator Configuration
+
+# Default RAG system to use (naive, lightrag, graphrag)
+default_rag_system: naive
+
+# Story configuration
+story:
+  path: data/story.xml
+  cache_dir: cache
+
+# Naive RAG configuration
+naive:
+  chunker:
+    max_chunk_size: 1000
+    overlap: 50
+  
+  embedding:
+    model: gemini-embedding-001
+    output_dimensionality: 768
+    task_type: RETRIEVAL_DOCUMENT
+  
+  indexer:
+    cache_name: story_naive
+    force_reindex: false
+  
+  similarity:
+    default_threshold: 0.6
+    # default_max_results: 5
+
+# LightRAG configuration
+lightrag:
+  # TODO: Add LightRAG-specific settings
+  enabled: false
+
+# GraphRAG configuration
+graphrag:
+  # TODO: Add GraphRAG-specific settings
+  enabled: false
+
+# Prompt builder configuration
+prompt_builder:
+  max_length: 4000
+  system_instructions: null  # null = use default
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# API Keys (use environment variables)
+# Set these in your .env file:
+#   GEMINI_API_KEY=your_key_here
+#   OPENAI_API_KEY=your_key_here
