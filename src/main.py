@@ -44,6 +44,7 @@ class StoryInvestigator:
         
         # Initialize plumbing components from config
         self.prompt_builder = config.create_prompt_builder()
+        self.llm_client = config.create_llm_client()
         self.answer_formatter = AnswerFormatter()
         
         # RAG-specific components (initialized on demand)
@@ -121,8 +122,13 @@ class StoryInvestigator:
         # Step 3: Build prompt
         prompt = self.prompt_builder.build_prompt(question, context)
         
-        # Step 4: TODO - Call LLM to generate answer
-        answer_text = "(LLM not implemented yet)"
+        # Step 4: Generate answer with LLM
+        logger.debug("Generating answer with LLM...")
+        try:
+            answer_text = self.llm_client.generate(prompt)
+        except Exception as e:
+            logger.error(f"LLM generation failed: {e}")
+            answer_text = f"[Error generating answer: {e}]"
         
         # Step 5: Format evidence
         evidence = self.answer_formatter.format_evidence(results)

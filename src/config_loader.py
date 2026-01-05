@@ -12,6 +12,7 @@ from src.rag.naive.embedding_service import EmbeddingService
 from src.rag.naive.chunk_indexer import ChunkIndexer
 from src.rag.naive.naive_rag import NaiveRAG
 from src.core.prompt_builder import PromptBuilder
+from src.core.llm_client import LLMClient
 from src.core.models import Message
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,24 @@ class ConfigLoader:
             )
         else:
             return PromptBuilder(max_length=max_length)
+    
+    def create_llm_client(self) -> LLMClient:
+        """
+        Create an LLMClient instance from config.
+        
+        Returns:
+            Configured LLMClient
+        """
+        model = self.get('llm.model', 'gemini-2.0-flash-exp')
+        temperature = self.get('llm.temperature', 0.7)
+        max_tokens = self.get('llm.max_tokens', 1024)
+        
+        logger.debug(f"Creating LLM client (model={model}, temp={temperature})")
+        return LLMClient(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:
         """
