@@ -31,24 +31,22 @@ def parse_messages(file_path: Path) -> List[Message]:
     # Find all message elements (both direct children and nested in chapters)
     for message_elem in root.findall(".//ns:message", NS):
         msg_id = message_elem.get("id", "")
-        
+        timestamp = message_elem.get("ts", "")
         # Extract sender ref
         sender_elem = message_elem.find("ns:sender", NS)
         sender = sender_elem.get("ref", "") if sender_elem is not None else ""
-        
         # Extract receiver ref
         receiver_elem = message_elem.find("ns:receiver", NS)
         receiver = receiver_elem.get("ref", "") if receiver_elem is not None else ""
-        
         # Extract body text
         body_elem = message_elem.find("ns:body", NS)
         body = body_elem.text if body_elem is not None and body_elem.text is not None else ""
-        
         messages.append(Message(
             id=msg_id,
             sender=sender,
             receiver=receiver,
-            body=body
+            body=body,
+            timestamp=timestamp
         ))
     
     return messages

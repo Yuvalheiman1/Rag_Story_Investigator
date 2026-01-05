@@ -54,9 +54,10 @@ class MessageChunker:
                 metadata={
                     "sender": message.sender,
                     "receiver": message.receiver,
-                    "message_id": message.id
+                    "message_id": message.id,
+                    "timestamp": message
                 },
-                source_message_ids=[message.id]
+                source_message_ids=[message.id],
             )
             
             chunks.append(chunk)
@@ -76,8 +77,9 @@ class MessageChunker:
         sender = message.sender if message.sender else "unknown"
         receiver = message.receiver if message.receiver else "unknown"
         body = message.body if message.body else ""
+        time = message.timestamp if message.timestamp else "unknown"
         
-        return f"{sender} to {receiver}: {body}"
+        return f"at {time} - {sender} to {receiver}: {body}"
 
 
 if __name__ == "__main__":

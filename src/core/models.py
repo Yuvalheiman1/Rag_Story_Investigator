@@ -19,14 +19,15 @@ class Message:
     sender: str
     receiver: str
     body: str
+    timestamp: str = ""  # ISO8601 or empty if not present
 
 @dataclass
 class Chunk:
     id: str                      # e.g., "chunk_m1"
     text: str                    # XML format preserved: <sender.../><receiver.../><body>...</body>
-    metadata: dict               # {sender, receiver, message_id, chapter_id (optional)}
+    metadata: dict               # {sender, receiver, message_id, chapter_id (optional), timestamp (optional)}
     source_message_ids: List[str] # ["m1"] - for traceability
-    embedding: Optional[np.ndarray] = None  # Add this field!
+    embedding: Optional[np.ndarray] = None
 
 @dataclass
 class SearchResult:
