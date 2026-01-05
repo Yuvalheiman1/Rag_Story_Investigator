@@ -9,7 +9,6 @@ from typing import List, Optional
 
 from src.config_loader import ConfigLoader
 from src.core.story_loader import parse_messages
-from src.core.answer_formatter import AnswerFormatter
 from src.core.models import Message, SearchResult, RetrievedContext
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,6 @@ class StoryInvestigator:
         # Initialize plumbing components from config
         self.prompt_builder = config.create_prompt_builder()
         self.llm_client = config.create_llm_client()
-        self.answer_formatter = AnswerFormatter()
         
         # RAG-specific components (initialized on demand)
         self.rag_engine = None
@@ -130,13 +128,9 @@ class StoryInvestigator:
             logger.error(f"LLM generation failed: {e}")
             answer_text = f"[Error generating answer: {e}]"
         
-        # Step 5: Format evidence
-        evidence = self.answer_formatter.format_evidence(results)
-        
         return {
             "question": question,
             "answer": answer_text,
-            "evidence": evidence,
             "results": results,
             "context": context,
             "prompt": prompt,
@@ -222,13 +216,6 @@ def interactive_mode(investigator: StoryInvestigator):
             print("ANSWER")
             print("=" * 70)
             print(response["answer"])
-            
-            print("\n" + "=" * 70)
-            print("EVIDENCE")
-            print("=" * 70)
-            for evidence_item in response["evidence"]:
-                print(evidence_item)
-            
             print()
             
         except KeyboardInterrupt:
