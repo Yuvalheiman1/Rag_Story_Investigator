@@ -54,7 +54,7 @@ class StoryInvestigator:
         Initialize the selected RAG system using config-based DI.
         
         Args:
-            rag_type: One of 'naive', 'lightrag', 'graphrag'
+            rag_type: One of 'naive', 'graphrag'
             
         Raises:
             ValueError: If invalid RAG type
@@ -67,19 +67,13 @@ class StoryInvestigator:
             self.current_rag_type = "naive"
             logger.info("Naive RAG initialized successfully")
             
-        elif rag_type == "lightrag":
-            logger.info("Initializing LightRAG system...")
-            self.rag_engine = self.config.create_lightrag(self.messages)
-            self.current_rag_type = "lightrag"
-            logger.info("LightRAG initialized successfully")
-            
         elif rag_type == "graphrag":
             raise NotImplementedError("GraphRAG not implemented yet")
             
         else:
             raise ValueError(
                 f"Invalid RAG type: {rag_type}. "
-                f"Choose from: naive, lightrag, graphrag"
+                f"Choose from: naive, graphrag"
             )
     
     def answer_question(
@@ -130,6 +124,12 @@ class StoryInvestigator:
         logger.debug("="*30)
         try:
             answer_text = self.llm_client.generate(prompt)
+            if answer_text:
+                logger.info(f"✓ Generated answer ({len(answer_text)} chars)")
+                logger.debug(f"Answer preview: {answer_text[:200]}...")
+            else:
+                logger.warning("⚠️ LLM returned empty answer!")
+                answer_text = "[No answer generated - empty response from LLM]"
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
             answer_text = f"[Error generating answer: {e}]"
@@ -206,7 +206,7 @@ def interactive_mode(investigator: StoryInvestigator):
                 break
             
             if question.lower() == 'switch':
-                rag_type = input("Select RAG system (naive/lightrag/graphrag): ").strip()
+                rag_type = input("Select RAG system (naive/graphrag): ").strip()
                 try:
                     investigator.select_rag_system(rag_type)
                     print(f"✓ Switched to {rag_type} RAG\n")
@@ -269,14 +269,13 @@ def main():
     # Ask user to select RAG system
     print("Select RAG system:")
     print("  1. naive     - Simple embedding-based retrieval")
-    print("  2. lightrag  - Graph-based RAG with entity extraction")
-    print("  3. graphrag  - Nano-GraphRAG (not implemented yet)")
+    print("  2. graphrag  - Nano-GraphRAG (not implemented yet)")
     print()
     
     default_rag = config.get_default_rag_system()
-    choice = input(f"Enter choice [1-3] (default: {default_rag}): ").strip()
+    choice = input(f"Enter choice [1-2] (default: {default_rag}): ").strip()
     
-    rag_map = {"1": "naive", "2": "lightrag", "3": "graphrag"}
+    rag_map = {"1": "naive", "2": "graphrag"}
     
     if not choice:
         rag_type = default_rag

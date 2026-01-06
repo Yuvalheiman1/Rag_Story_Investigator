@@ -125,6 +125,7 @@ Rag_Story_Investigator/
 │   ├── config_loader.py       # DI factory for all components
 │   │
 │   ├── core/                  # Core domain logic
+│   │   ├── embedding_service.py  # Gemini embeddings
 │   │   ├── models.py          # Data models (Message, Chunk, SearchResult, etc.)
 │   │   ├── story_loader.py    # XML parsing
 │   │   ├── prompt_builder.py  # Prompt construction for LLM
@@ -133,7 +134,6 @@ Rag_Story_Investigator/
 │   └── rag/                   # RAG implementations
 │       ├── naive/             # ✅ Naive RAG (implemented)
 │       │   ├── chunker.py     # Message chunking
-│       │   ├── embedding_service.py  # Gemini embeddings
 │       │   ├── chunk_indexer.py      # Embedding & caching
 │       │   ├── similarity.py         # Semantic search
 │       │   └── naive_rag.py          # Main RAG orchestrator

@@ -1,5 +1,5 @@
 """
-LLM client for generating answers using Google Gemini or OpenAI APIs with automatic fallback.
+LLM client for generating answers using OpenAI APIs.
 """
 import logging
 from os import getenv
@@ -8,9 +8,6 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / '.env')
 
-from google import genai
-from google.genai import types
-from google.genai.errors import ClientError
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -18,31 +15,28 @@ logger = logging.getLogger(__name__)
 
 class LLMClient:
     """
-    Client for generating text responses using Google Gemini with OpenAI fallback.
-    Automatically falls back to OpenAI when Gemini quota is exceeded.
+    Client for generating text responses using OpenAI.
     """
     
     def __init__(
         self,
-        gemini_api_key: Optional[str] = None,
         openai_api_key: Optional[str] = None,
-        model: str = "gemini-1.5-flash",
+        model: str = "gpt-5-nano",
         fallback_model: str = "gpt-4o-mini",
         temperature: float = 0.7,
         max_tokens: int = 1024,
         enable_fallback: bool = True
     ):
         """
-        Initialize the LLM client with Gemini primary and OpenAI fallback.
+        Initialize the LLM client with OpenAI.
         
         Args:
-            gemini_api_key: Google Gemini API key. If None, reads from GEMINI_API_KEY env var.
             openai_api_key: OpenAI API key. If None, reads from OPENAI_API_KEY env var.
-            model: Primary Gemini model to use
-            fallback_model: OpenAI model for fallback (gpt-4o-mini, gpt-4o, gpt-3.5-turbo)
+            model: Primary OpenAI model to use (gpt-5-nano, gpt-4o, gpt-4o-mini)
+            fallback_model: Fallback OpenAI model
             temperature: Sampling temperature (0.0-1.0)
             max_tokens: Maximum tokens in response
-            enable_fallback: Enable automatic fallback to OpenAI on quota errors
+            enable_fallback: Enable automatic fallback to fallback_model on errors
         """
         self.model = model
         self.fallback_model = fallback_model
@@ -50,24 +44,14 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.enable_fallback = enable_fallback
         
-        # Initialize Gemini
-        self.gemini_api_key = gemini_api_key or getenv("GEMINI_API_KEY")
-        if self.gemini_api_key:
-            self.gemini_client = genai.Client(api_key=self.gemini_api_key)
-            logger.info(f"Gemini client initialized with model: {model}")
-        else:
-            self.gemini_client = None
-            logger.warning("GEMINI_API_KEY not found, Gemini disabled")
-        
-        # Initialize OpenAI fallback
+        # Initialize OpenAI
         self.openai_api_key = openai_api_key or getenv("OPENAI_API_KEY")
-        if self.openai_api_key and enable_fallback:
+        if self.openai_api_key:
             self.openai_client = OpenAI(api_key=self.openai_api_key)
-            logger.info(f"OpenAI fallback enabled with model: {fallback_model}")
+            logger.info(f"OpenAI client initialized with model: {model}")
         else:
             self.openai_client = None
-            if enable_fallback:
-                logger.warning("OPENAI_API_KEY not found, fallback disabled")
+            logger.error("OPENAI_API_KEY not found")
     
     def generate(
         self,
@@ -76,7 +60,7 @@ class LLMClient:
         max_tokens: Optional[int] = None
     ) -> str:
         """
-        Generate a text response from a prompt with automatic fallback.
+        Generate a text response from a prompt.
         
         Args:
             prompt: The input prompt text
@@ -87,62 +71,35 @@ class LLMClient:
             Generated text response
             
         Raises:
-            ValueError: If prompt is empty
-            Exception: If both Gemini and OpenAI fail
+            ValueError: If prompt is empty or no client available
+            Exception: If OpenAI call fails
         """
         if not prompt.strip():
             raise ValueError("Prompt cannot be empty")
+        
+        if not self.openai_client:
+            raise ValueError("OpenAI client not available - check OPENAI_API_KEY")
         
         temp = temperature if temperature is not None else self.temperature
         max_tok = max_tokens if max_tokens is not None else self.max_tokens
         
         logger.debug(f"Generating response (temp={temp}, max_tokens={max_tok})...")
         
-        # Try Gemini first
-        if self.gemini_client:
-            try:
-                response = self.gemini_client.models.generate_content(
-                    model=self.model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=temp,
-                        max_output_tokens=max_tok
-                    )
-                )
-                
-                if response.text:
-                    logger.info(f"Gemini generated response ({len(response.text)} chars)")
-                    return response.text
-                else:
-                    logger.warning("Empty response from Gemini")
-                    
-            except ClientError as e:
-                # Check if it's a quota/rate limit error (429)
-                if e.code == 429 and self.enable_fallback and self.openai_client:
-                    logger.warning(f"Gemini quota exceeded (429), falling back to OpenAI...")
-                    return self._generate_openai(prompt, temp, max_tok)
-                else:
-                    logger.error(f"Gemini error: {e}")
-                    if self.enable_fallback and self.openai_client:
-                        logger.info("Attempting OpenAI fallback...")
-                        return self._generate_openai(prompt, temp, max_tok)
-                    raise
-                    
-            except Exception as e:
-                logger.error(f"Gemini error: {e}")
-                if self.enable_fallback and self.openai_client:
-                    logger.info("Attempting OpenAI fallback...")
-                    return self._generate_openai(prompt, temp, max_tok)
-                raise
-        
-        # If no Gemini client, try OpenAI directly
-        if self.openai_client:
-            return self._generate_openai(prompt, temp, max_tok)
-        
-        raise ValueError("No LLM client available (Gemini and OpenAI both disabled)")
+        # Try primary model first
+        try:
+            return self._generate_openai(self.model, prompt, temp, max_tok)
+        except Exception as e:
+            logger.error(f"OpenAI {self.model} error: {e}")
+            
+            # Try fallback if enabled and different model
+            if self.enable_fallback and self.fallback_model != self.model:
+                logger.info(f"Falling back to {self.fallback_model}...")
+                return self._generate_openai(self.fallback_model, prompt, temp, max_tok)
+            raise
     
     def _generate_openai(
         self,
+        model: str,
         prompt: str,
         temperature: float,
         max_tokens: int
@@ -151,6 +108,7 @@ class LLMClient:
         Generate response using OpenAI.
         
         Args:
+            model: OpenAI model name
             prompt: The input prompt
             temperature: Sampling temperature
             max_tokens: Maximum tokens
@@ -159,23 +117,28 @@ class LLMClient:
             Generated text response
         """
         try:
-            logger.debug(f"Using OpenAI {self.fallback_model}...")
+            logger.debug(f"Using OpenAI {model}...")
             
             # gpt-5-nano only supports temperature=1 (default)
             params = {
-                "model": self.fallback_model,
+                "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_completion_tokens": max_tokens
             }
             
             # Only add temperature if not gpt-5-nano
-            if "gpt-5-nano" not in self.fallback_model.lower():
+            if "gpt-5-nano" not in model.lower():
                 params["temperature"] = temperature
             
             response = self.openai_client.chat.completions.create(**params)
             
             text = response.choices[0].message.content
-            logger.info(f"OpenAI generated response ({len(text)} chars)")
+            if text:
+                logger.info(f"OpenAI generated response ({len(text)} chars)")
+                logger.debug(f"Response preview: {text[:200]}...")
+            else:
+                logger.warning(f"Empty response from OpenAI")
+                logger.warning(f"Full response: {response}")
             return text
             
         except Exception as e:

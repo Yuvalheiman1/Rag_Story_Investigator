@@ -1,6 +1,6 @@
 # RAG Story Investigator Configuration
 
-# Default RAG system to use (naive, lightrag, graphrag)
+# Default RAG system to use (naive, graphrag)
 default_rag_system: naive
 
 # Story configuration
@@ -27,17 +27,6 @@ naive:
     default_threshold: 0.4  # Lower threshold for sentence-transformers (better recall)
     # default_max_results: 5
 
-# LightRAG configuration
-lightrag:
-  working_dir: cache/lightrag
-  mode: hybrid  # naive, local, global, hybrid
-  force_reindex: false
-  
-  embedding:
-    model: all-mpnet-base-v2  # Local sentence-transformers model (768D)
-    output_dimensionality: 768
-    device: null  # null = auto-detect (cuda/cpu)
-
 # GraphRAG configuration
 graphrag:
   # TODO: Add GraphRAG-specific settings
@@ -45,24 +34,23 @@ graphrag:
 
 # Prompt builder configuration
 prompt_builder:
-  max_length: 4000
+  max_length: 3000
   system_instructions: null  # null = use default
 
 # LLM configuration
 llm:
-  model: gemini-1.5-flash
-  fallback_model: gpt-5-nano  # Fallback: OpenAI when Gemini fails (cheapest GPT-5)
-  enable_fallback: true  # Auto-fallback on errors
-  temperature: 0.7
-  max_tokens: 1024
+  model: gpt-5-nano              # OpenAI GPT-5 Nano (reasoning model)
+  fallback_model: gpt-4o-mini    # Fallback to gpt-4o-mini if gpt-5-nano fails
+  enable_fallback: true          # Auto-fallback on errors
+  temperature: 1.0               # gpt-5-nano only supports temperature=1
+  max_tokens: 4096               # High limit for gpt-5-nano reasoning tokens + completion
 
 
 # Logging configuration
 logging:
-  level: DEBUG  # DEBUG, INFO, WARNING, ERROR
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # API Keys (use environment variables)
 # Set these in your .env file:
-#   GEMINI_API_KEY=your_key_here
 #   OPENAI_API_KEY=your_key_here

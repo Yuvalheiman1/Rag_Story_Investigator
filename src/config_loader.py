@@ -11,7 +11,6 @@ from src.rag.naive.chunker import MessageChunker
 from src.core.embedding_service import EmbeddingService
 from src.rag.naive.chunk_indexer import ChunkIndexer
 from src.rag.naive.naive_rag import NaiveRAG
-from src.rag.lightrag.lightrag_rag import LightRAGEngine
 from src.core.prompt_builder import PromptBuilder
 from src.core.llm_client import LLMClient
 from src.core.models import Message
@@ -150,8 +149,8 @@ class ConfigLoader:
         Returns:
             Configured LLMClient
         """
-        model = self.get('llm.model', 'gemini-1.5-flash')
-        fallback_model = self.get('llm.fallback_model', 'gpt-5-nano')
+        model = self.get('llm.model', 'gpt-5-nano')
+        fallback_model = self.get('llm.fallback_model', 'gpt-4o-mini')
         temperature = self.get('llm.temperature', 0.7)
         max_tokens = self.get('llm.max_tokens', 1024)
         enable_fallback = self.get('llm.enable_fallback', True)
@@ -163,46 +162,6 @@ class ConfigLoader:
             temperature=temperature,
             max_tokens=max_tokens,
             enable_fallback=enable_fallback
-        )
-    
-    def create_lightrag(self, messages: List[Message]) -> LightRAGEngine:
-        """
-        Create a LightRAG instance with all dependencies from config.
-        
-        Args:
-            messages: Pre-parsed story messages
-            
-        Returns:
-            Fully configured LightRAGEngine instance
-        """
-        logger.info("Creating LightRAG system from config...")
-        
-        # Create embedding service
-        embedding_service = self.create_embedding_service()
-        
-        # Create LLM client for LightRAG's entity extraction
-        llm_client = self.create_llm_client()
-        
-        # Wrap LLM client for LightRAG format
-        def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-            full_prompt = prompt
-            if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"
-            return llm_client.generate(full_prompt)
-        
-        # Get LightRAG config
-        working_dir = self.get('lightrag.working_dir', 'cache/lightrag')
-        mode = self.get('lightrag.mode', 'hybrid')
-        force_reindex = self.get('lightrag.force_reindex', False)
-        
-        # Create and return LightRAG engine
-        return LightRAGEngine(
-            messages=messages,
-            embedding_service=embedding_service,
-            llm_model_func=llm_model_func,
-            working_dir=working_dir,
-            mode=mode,
-            force_reindex=force_reindex
         )
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:

@@ -19,6 +19,8 @@ class ChunkIndexer:
             embedding_service: Service for generating embeddings
             cache_dir: Directory to store cached chunks (default: "cache")
         """
+        import logging
+        self.logger = logging.getLogger(__name__)
         self.embedding_service = embedding_service
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -50,11 +52,18 @@ class ChunkIndexer:
         if not force_reindex:
             cached = self.load_from_cache(cache_name)
             if cached is not None:
+                self.logger.info(f"✓ Loaded {len(cached)} chunks with embeddings from cache: {cache_name}")
                 return cached
+            else:
+                self.logger.info(f"Cache miss for '{cache_name}' - will compute embeddings")
+        else:
+            self.logger.info(f"Force reindex enabled - ignoring cache")
         
         # Cache miss or forced reindex - embed and save
+        self.logger.info(f"Computing embeddings for {len(chunks)} chunks...")
         indexed = self.index(chunks)
         self.save_to_cache(indexed, cache_name)
+        self.logger.info(f"✓ Saved {len(indexed)} chunks with embeddings to cache: {cache_name}")
         return indexed
     
     def index(self, chunks: List[Chunk]) -> List[Chunk]:
