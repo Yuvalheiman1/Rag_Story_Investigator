@@ -20,19 +20,17 @@ graphrag:
 lightrag:
   enabled: true
   working_dir: cache/lightrag
+  index:
+    force_reindex: false
   llm:
-    provider: ollama
-    model: gemma3:1b
-    api_url: http://localhost:11434/api/generate
-    max_tokens: 4000
-    host: null
-    timeout: 300
+    provider: openai
+    model: gpt-4o-mini
   embedding:
-    provider: local
+    provider: openai
     batch_size: 32
   query:
     mode: naive
-    only_need_context: true
+    only_need_context: false
 prompt_builder:
   max_length: 3000
   system_instructions: null

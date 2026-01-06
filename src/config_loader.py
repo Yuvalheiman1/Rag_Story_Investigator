@@ -84,6 +84,9 @@ class ConfigLoader:
     def get_lightrag_embedding_batch_size(self) -> int:
         return int(self.get('lightrag.embedding.batch_size', 32))
 
+    def get_lightrag_force_reindex(self) -> bool:
+        return bool(self.get('lightrag.index.force_reindex', False))
+
     def get_lightrag_llm_provider(self) -> str:
         return str(self.get('lightrag.llm.provider', 'ollama')).lower()
 
@@ -205,9 +208,23 @@ class ConfigLoader:
     def create_lightrag_llm_model_func(self):
         """Create a LightRAG-compatible llm_model_func from config.
 
-        Currently supports `ollama` only.
+        Supports `openai` (recommended) and `ollama`.
         """
         provider = self.get_lightrag_llm_provider()
+
+        if provider == 'openai':
+            model = self.get_lightrag_llm_model()
+            from lightrag.llm.openai import (
+                gpt_4o_complete,
+                gpt_4o_mini_complete,
+                openai_complete,
+            )
+
+            if model == 'gpt-4o-mini':
+                return gpt_4o_mini_complete
+            if model == 'gpt-4o':
+                return gpt_4o_complete
+            return functools.partial(openai_complete, model=model)
 
         if provider == 'ollama':
             from src.rag.lightrag.lightrag_rag import ollama_http_complete
@@ -222,10 +239,59 @@ class ConfigLoader:
                 model=model,
             )
 
-        if provider == 'openai':
-            raise NotImplementedError("LightRAG openai provider not wired yet")
-
         raise ValueError(f"Unsupported LightRAG llm.provider: {provider}")
+
+    def create_lightrag_embedding_func(self):
+        """Create a LightRAG-compatible embedding_func from config.
+
+        For simplicity (and to match upstream examples), this defaults to OpenAI embeddings.
+        """
+        provider = str(self.get('lightrag.embedding.provider', 'openai')).lower()
+
+        if provider == 'openai':
+            from lightrag.llm.openai import openai_embed
+
+            # NOTE: openai_embed is already a wrapped EmbeddingFunc with attrs.
+            return openai_embed
+
+        if provider == 'local':
+            # Local sentence-transformers embedding adapter.
+            embedding_service = self.create_embedding_service()
+            from src.rag.lightrag.lightrag_rag import make_lightrag_embedding_func
+
+            return make_lightrag_embedding_func(embedding_service)
+
+        raise ValueError(f"Unsupported LightRAG embedding.provider: {provider}")
+
+    def create_lightrag_engine(self, messages: List[Message]):
+        """Create a LightRAG engine that answers questions end-to-end."""
+        if not self.is_lightrag_enabled():
+            raise ValueError("LightRAG is disabled in config (lightrag.enabled: false)")
+
+        from lightrag import QueryParam
+        from src.rag.lightrag.lightrag_engine import LightRAGEngine, LightRAGEngineConfig
+
+        llm_model_func = self.create_lightrag_llm_model_func()
+        embedding_func = self.create_lightrag_embedding_func()
+
+        query_param = QueryParam(
+            mode=self.get_lightrag_query_mode(),
+            only_need_context=self.get_lightrag_only_need_context(),
+            stream=False,
+        )
+
+        engine_config = LightRAGEngineConfig(
+            working_dir=self.get_lightrag_working_dir(),
+            query_param=query_param,
+            force_reindex=self.get_lightrag_force_reindex(),
+        )
+
+        return LightRAGEngine(
+            messages=messages,
+            llm_model_func=llm_model_func,
+            embedding_func=embedding_func,
+            config=engine_config,
+        )
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:
         """

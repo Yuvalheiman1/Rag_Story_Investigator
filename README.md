@@ -7,16 +7,16 @@ A console-based Python application that answers questions about a fictional stor
 This project implements a modular RAG system for investigating story messages (SMS/chat format) using multiple retrieval strategies. The system uses Google Gemini for both embeddings and answer generation, with support for three RAG engines:
 
 1. **Naive RAG** - Simple embedding-based semantic search with chunking ✅ **Implemented**
-2. **LightRAG** - Advanced lightweight RAG system 🚧 **Coming Soon**
+2. **LightRAG** - Advanced lightweight RAG system ✅ **Implemented (OpenAI gpt-4o-mini)**
 3. **GraphRAG** - Graph-based retrieval using nano-graphrag 🚧 **Coming Soon**
 
 ## Features
 
 - ✅ **Configuration-based Dependency Injection**: All components configured via `config.yaml`
 - ✅ **Three RAG Engines**: Naive (implemented), LightRAG and GraphRAG (planned)
-- ✅ **Google Gemini Integration**: 
-  - `gemini-embedding-001` for embeddings (with rate limiting & retry)
-  - `gemini-2.0-flash-exp` for answer generation
+- ✅ **OpenAI Integration**:
+  - `gpt-4o-mini` for LightRAG answering
+  - OpenAI Chat Completions for the default LLM client
 - ✅ **Timestamp Support**: Messages include timestamps, displayed in evidence
 - ✅ **Smart Caching**: Embeddings are cached to avoid redundant API calls
 - ✅ **Rate Limiting**: Automatic rate limiting and retry for API calls
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 ### 4. Configure API Keys
 Create a `.env` file in the project root:
 ```bash
-GEMINI_API_KEY=your_gemini_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
@@ -74,7 +74,7 @@ Ask me any question about the story
 
 Select RAG system:
   1. naive     - Simple embedding-based retrieval
-  2. lightrag  - LightRAG (not implemented yet)
+  2. lightrag  - LightRAG (OpenAI gpt-4o-mini)
   3. graphrag  - Nano-GraphRAG (not implemented yet)
 
 Enter choice [1-3] (default: naive): 1
