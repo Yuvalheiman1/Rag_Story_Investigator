@@ -63,11 +63,27 @@ class RagEngine(ABC):
     - naive
     - LightRAG
     - nano-graphrag
+
+    Note: the current app orchestrator (src/main.py) uses RAG engines as retrievers
+    that return ranked chunks; prompt building + LLM answering happens outside the
+    engine.
     """
 
     @abstractmethod
+    def retrieve(
+        self,
+        question: str,
+        threshold: float = 0.7,
+        max_results: Optional[int] = None,
+    ) -> List[SearchResult]:
+        """Retrieve relevant chunks for a question."""
+        raise NotImplementedError
+
     def answer(self, question: str) -> Answer:
         """
-        Given a user question, return a structured Answer.
+        Optional higher-level API: given a user question, return a structured Answer.
+
+        The default application flow does not rely on this; it calls `retrieve(...)`
+        and then uses PromptBuilder + LLMClient.
         """
-        raise NotImplementedError
+        raise NotImplementedError("RagEngine.answer() is not implemented")

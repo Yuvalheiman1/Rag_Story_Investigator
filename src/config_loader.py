@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, List
+import functools
 import yaml
 
 from src.rag.naive.chunker import MessageChunker
@@ -65,6 +66,43 @@ class ConfigLoader:
     def get_default_rag_system(self) -> str:
         """Get the default RAG system from config."""
         return self.get('default_rag_system', 'naive')
+
+    def is_lightrag_enabled(self) -> bool:
+        """Whether LightRAG is enabled in config."""
+        return bool(self.get('lightrag.enabled', False))
+
+    def get_lightrag_working_dir(self) -> str:
+        """Get LightRAG working dir (storage) path."""
+        return self.get('lightrag.working_dir', str(Path(self.get_cache_dir()) / 'lightrag'))
+
+    def get_lightrag_query_mode(self) -> str:
+        return self.get('lightrag.query.mode', 'naive')
+
+    def get_lightrag_only_need_context(self) -> bool:
+        return bool(self.get('lightrag.query.only_need_context', True))
+
+    def get_lightrag_embedding_batch_size(self) -> int:
+        return int(self.get('lightrag.embedding.batch_size', 32))
+
+    def get_lightrag_llm_provider(self) -> str:
+        return str(self.get('lightrag.llm.provider', 'ollama')).lower()
+
+    def get_lightrag_llm_model(self) -> str:
+        return str(self.get('lightrag.llm.model', 'gemma3:1b'))
+
+    def get_lightrag_llm_api_url(self) -> str:
+        return str(self.get('lightrag.llm.api_url', 'http://localhost:11434/api/generate'))
+
+    def get_lightrag_llm_max_tokens(self) -> int:
+        return int(self.get('lightrag.llm.max_tokens', 4000))
+
+    def get_lightrag_ollama_host(self) -> Optional[str]:
+        host = self.get('lightrag.llm.host', None)
+        return host if host not in ('', None) else None
+
+    def get_lightrag_ollama_timeout(self) -> Optional[float]:
+        timeout = self.get('lightrag.llm.timeout', None)
+        return timeout if timeout not in ('', None) else None
     
     def get_story_path(self) -> str:
         """Get the story file path from config."""
@@ -163,6 +201,31 @@ class ConfigLoader:
             max_tokens=max_tokens,
             enable_fallback=enable_fallback
         )
+
+    def create_lightrag_llm_model_func(self):
+        """Create a LightRAG-compatible llm_model_func from config.
+
+        Currently supports `ollama` only.
+        """
+        provider = self.get_lightrag_llm_provider()
+
+        if provider == 'ollama':
+            from src.rag.lightrag.lightrag_rag import ollama_http_complete
+
+            model = self.get_lightrag_llm_model()
+
+            # Bind config_path so the underlying HTTP client reads api_url/max_tokens
+            # from the same config.yaml file that created this ConfigLoader.
+            return functools.partial(
+                ollama_http_complete,
+                config_path=str(self.config_path),
+                model=model,
+            )
+
+        if provider == 'openai':
+            raise NotImplementedError("LightRAG openai provider not wired yet")
+
+        raise ValueError(f"Unsupported LightRAG llm.provider: {provider}")
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:
         """

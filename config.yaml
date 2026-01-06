@@ -1,56 +1,47 @@
-# RAG Story Investigator Configuration
-
-# Default RAG system to use (naive, graphrag)
 default_rag_system: naive
-
-# Story configuration
 story:
   path: data/story.xml
   cache_dir: cache
-
-# Naive RAG configuration
 naive:
   chunker:
     max_chunk_size: 1000
     overlap: 50
-  
   embedding:
-    model: all-mpnet-base-v2  # Local sentence-transformers model (768D)
+    model: all-mpnet-base-v2
     output_dimensionality: 768
-    device: null  # null = auto-detect (cuda/cpu)
-  
+    device: null
   indexer:
     cache_name: story_naive
     force_reindex: false
-  
   similarity:
-    default_threshold: 0.4  # Lower threshold for sentence-transformers (better recall)
-    # default_max_results: 5
-
-# GraphRAG configuration
+    default_threshold: 0.4
 graphrag:
-  # TODO: Add GraphRAG-specific settings
   enabled: false
-
-# Prompt builder configuration
+lightrag:
+  enabled: true
+  working_dir: cache/lightrag
+  llm:
+    provider: ollama
+    model: gemma3:1b
+    api_url: http://localhost:11434/api/generate
+    max_tokens: 4000
+    host: null
+    timeout: 300
+  embedding:
+    provider: local
+    batch_size: 32
+  query:
+    mode: naive
+    only_need_context: true
 prompt_builder:
   max_length: 3000
-  system_instructions: null  # null = use default
-
-# LLM configuration
+  system_instructions: null
 llm:
-  model: gpt-5-nano              # OpenAI GPT-5 Nano (reasoning model)
-  fallback_model: gpt-4o-mini    # Fallback to gpt-4o-mini if gpt-5-nano fails
-  enable_fallback: true          # Auto-fallback on errors
-  temperature: 1.0               # gpt-5-nano only supports temperature=1
-  max_tokens: 4096               # High limit for gpt-5-nano reasoning tokens + completion
-
-
-# Logging configuration
+  model: gpt-5-nano
+  fallback_model: gpt-4o-mini
+  enable_fallback: true
+  temperature: 1.0
+  max_tokens: 4096
 logging:
-  level: INFO  # DEBUG, INFO, WARNING, ERROR
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
-# API Keys (use environment variables)
-# Set these in your .env file:
-#   OPENAI_API_KEY=your_key_here
+  level: INFO
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
