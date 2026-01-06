@@ -7,7 +7,7 @@ from typing import List, Optional
 from src.rag.naive.chunker import MessageChunker
 from src.rag.naive.chunk_indexer import ChunkIndexer
 from src.rag.naive.similarity import SimilaritySearch
-from src.rag.naive.embedding_service import EmbeddingService
+from src.core.embedding_service import EmbeddingService
 from src.core.models import Message, SearchResult
 
 logger = logging.getLogger(__name__)

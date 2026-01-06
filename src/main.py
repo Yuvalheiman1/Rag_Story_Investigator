@@ -68,7 +68,10 @@ class StoryInvestigator:
             logger.info("Naive RAG initialized successfully")
             
         elif rag_type == "lightrag":
-            raise NotImplementedError("LightRAG not implemented yet")
+            logger.info("Initializing LightRAG system...")
+            self.rag_engine = self.config.create_lightrag(self.messages)
+            self.current_rag_type = "lightrag"
+            logger.info("LightRAG initialized successfully")
             
         elif rag_type == "graphrag":
             raise NotImplementedError("GraphRAG not implemented yet")
@@ -122,6 +125,9 @@ class StoryInvestigator:
         
         # Step 4: Generate answer with LLM
         logger.debug("Generating answer with LLM...")
+        logger.debug("="*30)
+        logger.debug(prompt)
+        logger.debug("="*30)
         try:
             answer_text = self.llm_client.generate(prompt)
         except Exception as e:
@@ -263,7 +269,7 @@ def main():
     # Ask user to select RAG system
     print("Select RAG system:")
     print("  1. naive     - Simple embedding-based retrieval")
-    print("  2. lightrag  - LightRAG (not implemented yet)")
+    print("  2. lightrag  - Graph-based RAG with entity extraction")
     print("  3. graphrag  - Nano-GraphRAG (not implemented yet)")
     print()
     

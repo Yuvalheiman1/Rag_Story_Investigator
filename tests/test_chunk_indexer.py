@@ -80,12 +80,6 @@ def test_index_calls_embed_batch(indexer, sample_chunks):
     assert indexer.embedding_service.embed_batch.called
 
 
-def test_index_uses_retrieval_document_task_type(indexer, sample_chunks):
-    indexer.index(sample_chunks)
-    call_args = indexer.embedding_service.embed_batch.call_args
-    assert call_args[1]["task_type"] == "RETRIEVAL_DOCUMENT"
-
-
 def test_index_embeds_all_chunks(indexer, sample_chunks):
     result = indexer.index(sample_chunks)
     assert all(chunk.embedding is not None for chunk in result)

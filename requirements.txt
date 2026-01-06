@@ -5,7 +5,11 @@ openai>=1.0.0
 python-dotenv>=1.0.0
 pyyaml>=6.0
 
+# Local embeddings
+sentence-transformers>=2.0.0
+
 # RAG libraries
+lightrag-hku[api]
 lightrag-hku>=0.0.0.1
 nano-graphrag>=0.1.0
 

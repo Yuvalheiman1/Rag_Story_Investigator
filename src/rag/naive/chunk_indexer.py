@@ -2,7 +2,7 @@ from typing import List, Optional
 from pathlib import Path
 import pickle
 from src.core.models import Chunk
-from src.rag.naive.embedding_service import EmbeddingService
+from src.core.embedding_service import EmbeddingService
 
 
 class ChunkIndexer:
@@ -76,11 +76,8 @@ class ChunkIndexer:
         # Extract text from all chunks
         chunk_texts = [chunk.text for chunk in chunks]
         
-        # Batch embed all texts with RETRIEVAL_DOCUMENT task type
-        embeddings = self.embedding_service.embed_batch(
-            texts=chunk_texts,
-            task_type="RETRIEVAL_DOCUMENT"
-        )
+        # Batch embed all texts
+        embeddings = self.embedding_service.embed_batch(texts=chunk_texts)
         
         # Store embeddings in chunks
         for chunk, embedding in zip(chunks, embeddings):

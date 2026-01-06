@@ -8,9 +8,10 @@ from typing import Any, Dict, Optional, List
 import yaml
 
 from src.rag.naive.chunker import MessageChunker
-from src.rag.naive.embedding_service import EmbeddingService
+from src.core.embedding_service import EmbeddingService
 from src.rag.naive.chunk_indexer import ChunkIndexer
 from src.rag.naive.naive_rag import NaiveRAG
+from src.rag.lightrag.lightrag_rag import LightRAGEngine
 from src.core.prompt_builder import PromptBuilder
 from src.core.llm_client import LLMClient
 from src.core.models import Message
@@ -96,15 +97,15 @@ class ConfigLoader:
         Returns:
             Configured EmbeddingService
         """
-        model = self.get('naive.embedding.model', 'gemini-embedding-001')
-        task_type=self.get('naive.embedding.task_type', 'RETRIEVAL_DOCUMENT')
+        model = self.get('naive.embedding.model', 'all-mpnet-base-v2')
         output_dim = self.get('naive.embedding.output_dimensionality', 768)
+        device = self.get('naive.embedding.device', None)
         
-        logger.debug(f"Creating embedding service (model={model}, dim={output_dim})")
+        logger.debug(f"Creating local embedding service (model={model}, dim={output_dim})")
         return EmbeddingService(
             model=model,
-            task_type=task_type,
-            output_dimensionality=output_dim
+            output_dimensionality=output_dim,
+            device=device
         )
     
     def create_indexer(self, embedding_service: EmbeddingService) -> ChunkIndexer:
@@ -144,20 +145,64 @@ class ConfigLoader:
     
     def create_llm_client(self) -> LLMClient:
         """
-        Create an LLMClient instance from config.
+        Create an LLMClient instance from config with OpenAI fallback.
         
         Returns:
             Configured LLMClient
         """
-        model = self.get('llm.model', 'gemini-2.0-flash-exp')
+        model = self.get('llm.model', 'gemini-1.5-flash')
+        fallback_model = self.get('llm.fallback_model', 'gpt-5-nano')
         temperature = self.get('llm.temperature', 0.7)
         max_tokens = self.get('llm.max_tokens', 1024)
+        enable_fallback = self.get('llm.enable_fallback', True)
         
-        logger.debug(f"Creating LLM client (model={model}, temp={temperature})")
+        logger.debug(f"Creating LLM client (model={model}, fallback={fallback_model})")
         return LLMClient(
             model=model,
+            fallback_model=fallback_model,
             temperature=temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            enable_fallback=enable_fallback
+        )
+    
+    def create_lightrag(self, messages: List[Message]) -> LightRAGEngine:
+        """
+        Create a LightRAG instance with all dependencies from config.
+        
+        Args:
+            messages: Pre-parsed story messages
+            
+        Returns:
+            Fully configured LightRAGEngine instance
+        """
+        logger.info("Creating LightRAG system from config...")
+        
+        # Create embedding service
+        embedding_service = self.create_embedding_service()
+        
+        # Create LLM client for LightRAG's entity extraction
+        llm_client = self.create_llm_client()
+        
+        # Wrap LLM client for LightRAG format
+        def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            full_prompt = prompt
+            if system_prompt:
+                full_prompt = f"{system_prompt}\n\n{prompt}"
+            return llm_client.generate(full_prompt)
+        
+        # Get LightRAG config
+        working_dir = self.get('lightrag.working_dir', 'cache/lightrag')
+        mode = self.get('lightrag.mode', 'hybrid')
+        force_reindex = self.get('lightrag.force_reindex', False)
+        
+        # Create and return LightRAG engine
+        return LightRAGEngine(
+            messages=messages,
+            embedding_service=embedding_service,
+            llm_model_func=llm_model_func,
+            working_dir=working_dir,
+            mode=mode,
+            force_reindex=force_reindex
         )
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:

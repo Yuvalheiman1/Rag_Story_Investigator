@@ -108,7 +108,7 @@ if __name__ == "__main__":
     from src.core.models import Message
     from src.rag.naive.chunker import MessageChunker
     from src.rag.naive.chunk_indexer import ChunkIndexer
-    from src.rag.naive.embedding_service import EmbeddingService
+    from src.core.embedding_service import EmbeddingService
     
     print("=" * 70)
     print("SimilaritySearch - Simple Manual Test")
