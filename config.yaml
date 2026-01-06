@@ -16,7 +16,27 @@ naive:
   similarity:
     default_threshold: 0.4
 graphrag:
-  enabled: false
+  enabled: true
+  working_dir: cache/graphrag
+  neo4j:
+    # Neo4j credentials - override these by setting environment variables:
+    # NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE
+    uri: bolt://localhost:7687
+    username: neo4j
+    password: password  # CHANGE THIS or set NEO4J_PASSWORD in .env
+    database: neo4j
+  index:
+    vector_index_name: chunk_embeddings
+    node_label: Chunk
+    embedding_property: embedding
+    force_reindex: false
+  embedding:
+    model: all-mpnet-base-v2
+    output_dimensionality: 768
+    device: null
+  retrieval:
+    top_k: 10
+    similarity_threshold: 0.4
 lightrag:
   enabled: true
   working_dir: cache/lightrag
@@ -42,7 +62,7 @@ lightrag:
       Example format:
       (at 2025-08-29T19:15:50+10:00) zoe to six: I just found Liam's phone in Marcus's jacket pocket. What is going on?
       
-      Keep your answer brief and fact-based. List the most relevant evidence items with their scores and timestamps.
+      Keep your answer brief and fact-based. List the most relevant evidence items with their timestamps.
 prompt_builder:
   max_length: 3000
   system_instructions: null

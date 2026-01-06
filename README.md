@@ -4,11 +4,11 @@ A console-based Python application that answers questions about a fictional stor
 
 ## Overview
 
-This project implements a modular RAG system for investigating story messages (SMS/chat format) using multiple retrieval strategies. The system uses Google Gemini for both embeddings and answer generation, with support for three RAG engines:
+This project implements a modular RAG system for investigating story messages (SMS/chat format) using multiple retrieval strategies. The system supports three different RAG engines with unified evidence formatting:
 
 1. **Naive RAG** - Simple embedding-based semantic search with chunking ✅ **Implemented**
-2. **LightRAG** - Advanced lightweight RAG system ✅ **Implemented (OpenAI gpt-4o-mini)**
-3. **GraphRAG** - Graph-based retrieval using nano-graphrag 🚧 **Coming Soon**
+2. **LightRAG** - Advanced lightweight RAG system with end-to-end answering ✅ **Implemented (OpenAI gpt-4o-mini)**
+3. **GraphRAG** - Graph-based retrieval using Neo4j vector index ✅ **Implemented (neo4j-graphrag-python)**
 
 ## Features
 
@@ -44,19 +44,51 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 4. Configure API Keys
-Create a `.env` file in the project root:
+### 4. Configure Environment Variables
+Create a `.env` file in the project root (copy from `.env.example`):
 ```bash
-OPENAI_API_KEY=your_openai_api_key_here
+cp .env.example .env
 ```
 
-Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+Edit `.env` with your credentials:
+```bash
+# OpenAI API Key (required for LightRAG and Naive RAG LLM)
+OPENAI_API_KEY=your_openai_api_key_here
 
-### 5. Configure System (Optional)
+# Neo4j Configuration (required for GraphRAG)
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=password
+NEO4J_DATABASE=neo4j
+```
+
+**Get API Keys:**
+- OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
+### 5. Set Up Neo4j (Required for GraphRAG)
+GraphRAG requires a local Neo4j instance. Choose one option:
+
+**Option A: Docker (Recommended)**
+```bash
+docker run -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:latest
+```
+
+**Option B: Neo4j Desktop**
+1. Download [Neo4j Desktop](https://neo4j.com/download/)
+2. Create a new database
+3. Set password to match your `.env` file (or update `.env` to match)
+4. Start the database
+
+**Verify Neo4j is running:**
+- Open http://localhost:7474 in your browser
+- Login with username: `neo4j`, password: `password` (or your custom password)
+
+### 6. Configure System (Optional)
 Edit `config.yaml` to customize:
 - RAG system settings (chunk size, similarity threshold, etc.)
 - LLM parameters (model, temperature, max tokens)
 - Embedding configuration (model, dimensionality)
+- Neo4j connectioneo4j GraphRAG (requires Neo4j running
 - Logging level
 
 ## Usage
@@ -99,7 +131,9 @@ Question:
 
 ### Command Line Options
 ```bash
-# Use custom config file
+# Use custom config fileRAG storage (auto-generated)
+│   ├── lightrag/              # LightRAG cache (38MB: graphs, embeddings, LLM responses)
+│   └── graphrag/              # GraphRAG working directory
 python -m src.main --config custom_config.yaml
 
 # Use custom story file
@@ -111,19 +145,19 @@ python -m src.main --story data/my_story.xml
 ```
 Rag_Story_Investigator/
 ├── config.yaml                 # Main configuration file
-├── requirements.txt            # Python dependencies
-├── .env                        # API keys (not in git)
-├── README.md
-│
-├── data/
-│   └── story.xml              # Story messages in XML format
-│
-├── cache/                     # Embedding cache (auto-generated)
-│
-├── src/
-│   ├── main.py                # Entry point & interactive loop
-│   ├── config_loader.py       # DI factory for all components
-│   │
+├── requirements.txt            # Python dep
+│       │   ├── chunker.py     # Message chunking
+│       │   ├── chunk_indexer.py      # Embedding & caching
+│       │   ├── similarity.py         # Semantic search
+│       │   └── naive_rag.py          # Main RAG orchestrator
+│       │
+│       ├── lightrag/          # ✅ LightRAG
+│       │   ├── lightrag_engine.py    # Engine wrapper
+│       │   ├── lightrag_rag.py       # RagEngine implementation
+│       │   └── llm_service.py        # LLM integration
+│       │
+│       └── graphrag/          # ✅ GraphRAG
+│           └── graphrag_engine.py    # Neo4j vector retrieval
 │   ├── core/                  # Core domain logic
 │   │   ├── embedding_service.py  # Gemini embeddings
 │   │   ├── models.py          # Data models (Message, Chunk, SearchResult, etc.)
@@ -222,38 +256,93 @@ python -m src.rag.naive.embedding_service
 python -m src.rag.naive.similarity
 ```
 
-## Tech Stack
+## Tech Stack10+
+- **LLM**: OpenAI GPT-4o-mini
+- **Embeddings**: 
+  - Sentence Transformers (all-mpnet-base-v2, 768-dim) for Naive RAG and GraphRAG
+  - OpenAI embeddings for LightRAG
+- **Graph Database**: Neo4j 5.x with vector index (GraphRAG)
+- **RAG Libraries**:
+  - `lightrag-hku` - LightRAG implementation
+  - `neo4j-graphrag-python` - Neo4j GraphRAG retrievers
+- **Configuration**: PyYAML, python-dotenv
+- **Testing**: pytest, pytest-cov** (planned):
+  -RAG System Details
 
-- **Language**: Python 3.8+
-- **LLM & Embeddings**: Google Gemini API
-  - `gemini-embedding-001` for embeddings
-  - `gemini-2.0-flash-exp` for text generation
-- **Configuration**: PyYAML
-- **Environment**: python-dotenv
-- **Testing**: pytest, pytest-cov
-- **RAG Libraries** (planned):
-  - lightrag-hku
-  - nano-graphrag
+### Naive RAG
+- **Retrieval**: Cosine similarity search on local embeddings
+- **Embedding**: sentence-transformers (all-mpnet-base-v2)
+- **Storage**: JSON cache files
+- **Best for**: Simple, fast queries with local control
 
-## API Rate Limits
+### LightRAG
+- **Retrieval**: End-to-end RAG with built-in knowledge graph
+- **LLM**: OpenAI gpt-4o-mini
+- **Embedding**: OpenAI embeddings
+- **Storage**: 38MB cache (graphs, embeddings, LLM responses)
+- **Modes**: naive, local, global, hybrid
+- **Best for**: Complex queries requiring graph relationships
 
-### Gemini Free Tier
-- Embedding: 100 requests/minute
-- Generation: 15 requests/minute
+### GraphRAG
+- **Retrieval**: with OpenAI integration
+- [x] Naive RAG implementation
+  - [x] Message chunking
+  - [x] Embedding service with local models
+  - [x] Chunk indexing and caching
+  - [x] Semantic similarity search
+- [x] LightRAG implementation
+  - [x] OpenAI gpt-4o-mini integration
+  - [x] Knowledge graph construction
+  - [x] Custom user prompt formatting
+  - [x] Cache management (38MB cached data)
+- [x] GraphRAG implementation
+  - [x] Neo4j vector index creation
+  - [x] Message ingestion as graph nodes
+  - [x] VectorRetriever integration
+  - [x] Environment variable configuration
+- [x] Dependency injection system
+- [x] Interactive console interface
+- [x] Unified evidence formatting across all engines
+- [x] Secure credential management (.env)
 
-The system automatically handles rate limiting with:
-- Automatic retry on 429 errors
+### Next Steps 🚧
+- [ ] Performance benchmarking comparison
+- [ ] Graph traversal retrieval (beyond vector-only)
+- [ ] Hybrid retrieval strategies
+- [ ] Answer quality metrics
+- [ ] Advanced Neo4j relationship modelingors
 - Configurable delay between batches
 - Progress logging for long operations
 
 ## Roadmap
 
 ### Completed ✅
-- [x] Project structure and configuration
-- [x] Story loader with timestamp support
-- [x] Prompt builder with system instructions
-- [x] LLM client (Gemini)
-- [x] Naive RAG implementation
+- [Troubleshooting
+
+### GraphRAG: "Could not connect to Neo4j"
+1. Verify Neo4j is running: `docker ps` (should show neo4j container)
+2. Check http://localhost:7474 is accessible
+3. Verify credentials in `.env` match your Neo4j setup
+4. Ensure ports 7474 and 7687 are not blocked
+
+### LightRAG: Cache files too large
+- LightRAG cache grows to ~38MB (normal)
+- **Do NOT delete cache files** - prevents expensive re-indexing
+- Files in `cache/lightrag/`:
+  - `graph_chunk_entity_relation.graphml` - Knowledge graph
+  - `kv_store_*.json` - Embeddings and entities
+  - `vdb_*.json` - Vector databases
+
+### OpenAI API Errors
+- Verify `OPENAI_API_KEY` is set in `.env`
+- Check API quota at [platform.openai.com](https://platform.openai.com/usage)
+
+## Acknowledgments
+
+- [OpenAI](https://openai.com) for GPT-4o-mini and embeddings
+- [LightRAG-HKU](https://github.com/HKUDS/LightRAG) for lightweight RAG framework
+- [neo4j-graphrag-python](https://github.com/neo4j/neo4j-graphrag-python) for graph-based retrieval
+- [Sentence Transformers](https://www.sbert.net/) for local embedding models
   - [x] Message chunking
   - [x] Embedding service with rate limiting
   - [x] Chunk indexing and caching
@@ -287,4 +376,4 @@ Contributions are welcome! Please:
 
 - Google Gemini for LLM and embedding APIs
 - LightRAG-HKU for lightweight RAG framework
-- nano-graphrag for graph-based retrieval
+- neo4j-graphrag-python for graph-based retrieval

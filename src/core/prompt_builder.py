@@ -11,8 +11,8 @@ DEFAULT_SYSTEM_INSTRUCTIONS = """You are AI Investigator 1.0, an advanced AI ass
     - Be factual and concise in your responses
     - Format your response with:
       1. A direct, brief answer to the question (1-3 sentences)
-      2. An "Evidence" section listing relevant messages with timestamps and similarity scores
-    - For evidence, format each item as: "[Score] (at timestamp) message content"""
+      2. An "Evidence" section listing relevant messages with timestamps
+    - For evidence, format each item as: "(at timestamp) sender to receiver: message content"""
 
 
 class PromptBuilder:

@@ -31,6 +31,10 @@ class ConfigLoader:
         Args:
             config_path: Path to YAML config file
         """
+        # Load .env file if it exists
+        from dotenv import load_dotenv
+        load_dotenv()
+        
         self.config_path = Path(config_path)
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -110,6 +114,48 @@ class ConfigLoader:
     def get_lightrag_ollama_timeout(self) -> Optional[float]:
         timeout = self.get('lightrag.llm.timeout', None)
         return timeout if timeout not in ('', None) else None
+    
+    def is_graphrag_enabled(self) -> bool:
+        """Whether GraphRAG is enabled in config."""
+        return bool(self.get('graphrag.enabled', False))
+    
+    def get_graphrag_working_dir(self) -> str:
+        """Get GraphRAG working dir (storage) path."""
+        return self.get('graphrag.working_dir', str(Path(self.get_cache_dir()) / 'graphrag'))
+    
+    def get_graphrag_neo4j_uri(self) -> str:
+        """Get Neo4j URI from environment or config."""
+        return os.getenv('NEO4J_URI', self.get('graphrag.neo4j.uri', 'bolt://localhost:7687'))
+    
+    def get_graphrag_neo4j_username(self) -> str:
+        """Get Neo4j username from environment or config."""
+        return os.getenv('NEO4J_USERNAME', self.get('graphrag.neo4j.username', 'neo4j'))
+    
+    def get_graphrag_neo4j_password(self) -> str:
+        """Get Neo4j password from environment or config."""
+        return os.getenv('NEO4J_PASSWORD', self.get('graphrag.neo4j.password', 'password'))
+    
+    def get_graphrag_neo4j_database(self) -> str:
+        """Get Neo4j database from environment or config."""
+        return os.getenv('NEO4J_DATABASE', self.get('graphrag.neo4j.database', 'neo4j'))
+    
+    def get_graphrag_vector_index_name(self) -> str:
+        return self.get('graphrag.index.vector_index_name', 'chunk_embeddings')
+    
+    def get_graphrag_node_label(self) -> str:
+        return self.get('graphrag.index.node_label', 'Chunk')
+    
+    def get_graphrag_embedding_property(self) -> str:
+        return self.get('graphrag.index.embedding_property', 'embedding')
+    
+    def get_graphrag_force_reindex(self) -> bool:
+        return bool(self.get('graphrag.index.force_reindex', False))
+    
+    def get_graphrag_top_k(self) -> int:
+        return int(self.get('graphrag.retrieval.top_k', 10))
+    
+    def get_graphrag_similarity_threshold(self) -> float:
+        return float(self.get('graphrag.retrieval.similarity_threshold', 0.4))
     
     def get_story_path(self) -> str:
         """Get the story file path from config."""
@@ -296,6 +342,31 @@ class ConfigLoader:
             llm_model_func=llm_model_func,
             embedding_func=embedding_func,
             config=engine_config,
+        )
+    
+    def create_graphrag_engine(self, messages: List[Message]):
+        """Create a GraphRAG engine with Neo4j vector retrieval."""
+        if not self.is_graphrag_enabled():
+            raise ValueError("GraphRAG is disabled in config (graphrag.enabled: false)")
+        
+        from src.rag.graphrag.graphrag_engine import GraphRAGEngine
+        
+        # Create embedding service for GraphRAG
+        embedding_service = self.create_embedding_service()
+        
+        return GraphRAGEngine(
+            messages=messages,
+            embedding_service=embedding_service,
+            neo4j_uri=self.get_graphrag_neo4j_uri(),
+            neo4j_user=self.get_graphrag_neo4j_username(),
+            neo4j_password=self.get_graphrag_neo4j_password(),
+            neo4j_database=self.get_graphrag_neo4j_database(),
+            vector_index_name=self.get_graphrag_vector_index_name(),
+            node_label=self.get_graphrag_node_label(),
+            embedding_property=self.get_graphrag_embedding_property(),
+            working_dir=self.get_graphrag_working_dir(),
+            force_reindex=self.get_graphrag_force_reindex(),
+            top_k=self.get_graphrag_top_k(),
         )
     
     def create_naive_rag(self, messages: List[Message]) -> NaiveRAG:

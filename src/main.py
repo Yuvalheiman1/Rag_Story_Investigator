@@ -74,7 +74,10 @@ class StoryInvestigator:
             logger.info("LightRAG initialized successfully")
             
         elif rag_type == "graphrag":
-            raise NotImplementedError("GraphRAG not implemented yet")
+            logger.info("Initializing GraphRAG system...")
+            self.rag_engine = self.config.create_graphrag_engine(self.messages)
+            self.current_rag_type = "graphrag"
+            logger.info("GraphRAG initialized successfully")
             
         else:
             raise ValueError(
