@@ -31,6 +31,18 @@ lightrag:
   query:
     mode: naive
     only_need_context: false
+    user_prompt: |
+      Format your response in this specific structure:
+      1. Start with a concise, direct answer (1-2 sentences), 10-20 words.
+      2. Then provide an "Evidence" section with relevant message quotes
+      
+      For the Evidence section, format each entry as:
+      (at timestamp) sender to receiver: message content
+      
+      Example format:
+      (at 2025-08-29T19:15:50+10:00) zoe to six: I just found Liam's phone in Marcus's jacket pocket. What is going on?
+      
+      Keep your answer brief and fact-based. List the most relevant evidence items with their scores and timestamps.
 prompt_builder:
   max_length: 3000
   system_instructions: null
@@ -41,5 +53,5 @@ llm:
   temperature: 1.0
   max_tokens: 4096
 logging:
-  level: INFO
+  level: DEBUG
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

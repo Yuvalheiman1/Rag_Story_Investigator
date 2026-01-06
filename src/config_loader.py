@@ -80,6 +80,10 @@ class ConfigLoader:
 
     def get_lightrag_only_need_context(self) -> bool:
         return bool(self.get('lightrag.query.only_need_context', True))
+    
+    def get_lightrag_user_prompt(self) -> Optional[str]:
+        """Get custom user prompt for LightRAG queries."""
+        return self.get('lightrag.query.user_prompt', None)
 
     def get_lightrag_embedding_batch_size(self) -> int:
         return int(self.get('lightrag.embedding.batch_size', 32))
@@ -278,6 +282,7 @@ class ConfigLoader:
             mode=self.get_lightrag_query_mode(),
             only_need_context=self.get_lightrag_only_need_context(),
             stream=False,
+            user_prompt=self.get_lightrag_user_prompt(),
         )
 
         engine_config = LightRAGEngineConfig(
