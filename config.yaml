@@ -1,56 +1,102 @@
+# Default RAG system to use on startup
+# Options: naive, lightrag, graphrag
 default_rag_system: naive
+
 story:
+  # Path to the story XML file containing messages
   path: data/story.xml
+  # Directory for storing cached indices and models
   cache_dir: cache
+
+# Naive RAG: Simple embedding-based retrieval
 naive:
   chunker:
+    # Maximum characters per chunk (e.g., 500, 1000, 2000)
     max_chunk_size: 1000
+    # Character overlap between consecutive chunks (e.g., 0, 50, 100)
     overlap: 50
   embedding:
+    # Sentence-transformer model for local embeddings
+    # Examples: all-mpnet-base-v2, all-MiniLM-L6-v2, multi-qa-mpnet-base-dot-v1
     model: all-mpnet-base-v2
+    # Embedding vector dimension (768 for mpnet, 384 for MiniLM)
     output_dimensionality: 768
+    # Device for computation: null (auto), cpu, cuda, mps
     device: null
   indexer:
+    # Name for the cache file (e.g., story_naive, my_index)
     cache_name: story_naive
+    # Force re-indexing even if cache exists (true/false)
     force_reindex: false
   similarity:
+    # Minimum similarity score for retrieval (0.0-1.0, e.g., 0.3, 0.4, 0.7)
     default_threshold: 0.4
+
+# GraphRAG: Neo4j-based graph retrieval with vector search
 graphrag:
+  # Enable or disable GraphRAG (true/false)
   enabled: true
+  # Directory for GraphRAG metadata and markers
   working_dir: cache/graphrag
   neo4j:
     # Neo4j credentials - override these by setting environment variables:
     # NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE
+    # Connection URI (e.g., bolt://localhost:7687, neo4j://myserver:7687)
     uri: bolt://localhost:7687
+    # Neo4j username (default: neo4j)
     username: neo4j
-    password: password  # CHANGE THIS or set NEO4J_PASSWORD in .env
+    # Neo4j password - CHANGE THIS or set NEO4J_PASSWORD in .env
+    password: password
+    # Neo4j database name (default: neo4j, or custom like mydb)
     database: neo4j
   index:
+    # Name of the vector index in Neo4j (e.g., chunk_embeddings, story_vectors)
     vector_index_name: chunk_embeddings
+    # Label for chunk nodes in Neo4j (e.g., Chunk, Message, Document)
     node_label: Chunk
+    # Property name for storing embeddings (e.g., embedding, vector)
     embedding_property: embedding
+    # Force re-indexing even if data exists (true/false)
     force_reindex: false
   embedding:
+    # Model for generating embeddings (same as naive)
     model: all-mpnet-base-v2
+    # Embedding dimension (must match model: 768, 384, etc.)
     output_dimensionality: 768
+    # Device: null (auto), cpu, cuda, mps
     device: null
   retrieval:
+    # Number of results to retrieve (e.g., 5, 10, 20)
     top_k: 10
+    # Minimum similarity threshold (0.0-1.0, e.g., 0.3, 0.5, 0.7)
     similarity_threshold: 0.4
+
+# LightRAG: Advanced RAG with entity/relationship extraction
 lightrag:
+  # Enable or disable LightRAG (true/false)
   enabled: true
+  # Directory for LightRAG storage (KV stores, graphs)
   working_dir: cache/lightrag
   index:
+    # Force re-indexing even if storage exists (true/false)
     force_reindex: false
   llm:
+    # LLM provider: openai, ollama
     provider: openai
+    # Model name (e.g., gpt-4o-mini, gpt-4, gpt-3.5-turbo for OpenAI)
     model: gpt-4o-mini
   embedding:
+    # Embedding provider: openai, local
     provider: openai
+    # Batch size for embedding generation (e.g., 16, 32, 64)
     batch_size: 32
   query:
+    # Query mode: naive, local, global, hybrid
+    # naive: direct text chunks, local: entity-focused, global: high-level, hybrid: combined
     mode: naive
+    # Return only context without LLM generation (true/false)
     only_need_context: false
+    # Custom prompt template for formatting LLM responses
     user_prompt: |
       Format your response in this specific structure:
       1. Start with a concise, direct answer (1-2 sentences), 10-20 words.
@@ -63,15 +109,30 @@ lightrag:
       (at 2025-08-29T19:15:50+10:00) zoe to six: I just found Liam's phone in Marcus's jacket pocket. What is going on?
       
       Keep your answer brief and fact-based. List the most relevant evidence items with their timestamps.
+
+# Prompt builder settings for all RAG systems
 prompt_builder:
+  # Maximum prompt length in characters (e.g., 2000, 3000, 5000)
   max_length: 3000
+  # Custom system instructions (null for default, or custom string)
   system_instructions: null
+
+# LLM configuration for generating final answers
 llm:
+  # Primary model to use (e.g., gpt-4o-mini, gpt-4, gpt-3.5-turbo)
   model: gpt-5-nano
+  # Fallback model if primary fails (e.g., gpt-4o-mini, gpt-3.5-turbo)
   fallback_model: gpt-4o-mini
+  # Enable automatic fallback on error (true/false)
   enable_fallback: true
+  # Temperature for response randomness (0.0-2.0: 0.0=deterministic, 1.0=balanced, 2.0=creative)
   temperature: 1.0
+  # Maximum tokens in response (e.g., 512, 1024, 4096)
   max_tokens: 4096
+
+# Logging configuration
 logging:
-  level: DEBUG
+  # Log level: DEBUG (verbose), INFO (standard), WARNING (errors only), ERROR, CRITICAL
+  level: WARNING
+  # Log format string (Python logging format)
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

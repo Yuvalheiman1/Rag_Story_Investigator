@@ -104,10 +104,12 @@ class GraphRAGEngine(RagEngine):
             logger.error(f"Failed to connect to Neo4j: {e}")
             raise
         
-        # Check if indexing is needed
+        # Ensure vector index exists first (before VectorRetriever checks for it)
+        self._ensure_vector_index()
+        
+        # Check if data ingestion is needed
         if self._needs_indexing():
             logger.info("Indexing story into Neo4j...")
-            self._ensure_vector_index()
             self._ingest_messages()
             try:
                 self._indexed_marker.write_text("ok\n", encoding="utf-8")
@@ -117,20 +119,41 @@ class GraphRAGEngine(RagEngine):
         else:
             logger.info("GraphRAG storage already populated; skipping indexing")
         
-        # Initialize retriever
+        # Initialize retriever (index must exist before this)
+        from neo4j_graphrag.types import RetrieverResultItem
+
+        def _result_formatter(record):
+            node = record.get("node")
+            score = record.get("score")
+            return RetrieverResultItem(
+                content=dict(node) if node is not None else {},
+                metadata={"score": float(score) if score is not None else 0.0},
+            )
+
         self._retriever = VectorRetriever(
             driver=self._driver,
             index_name=self._vector_index_name,
             embedder=None,  # We'll provide embeddings directly
+            result_formatter=_result_formatter,
+            neo4j_database=self._neo4j_database,
         )
     
     def _needs_indexing(self) -> bool:
-        """Check if indexing is needed."""
+        """Check if indexing is needed by checking both marker file and actual data in Neo4j."""
         if self._force_reindex:
             return True
         if not self._working_dir.exists():
             return True
-        return not self._indexed_marker.exists()
+        if not self._indexed_marker.exists():
+            return True
+        
+        # Check if data actually exists in Neo4j
+        with self._driver.session(database=self._neo4j_database) as session:
+            result = session.run(
+                f"MATCH (n:{self._node_label}) RETURN count(n) as count"
+            )
+            count = result.single()["count"]
+            return count == 0  # Need indexing if no data exists
     
     def _ensure_vector_index(self):
         """Create vector index if it doesn't exist."""
@@ -259,10 +282,8 @@ class GraphRAGEngine(RagEngine):
         # Convert to our SearchResult format
         results = []
         for item in search_results.items:
-            # item is a RetrieverResultItem with content and metadata
-            # Parse the content (it's a string representation of the node)
-            import ast
-            node_dict = ast.literal_eval(item.content) if isinstance(item.content, str) and item.content.startswith('{') else {}
+            # item is a RetrieverResultItem(content=<dict>, metadata={"score": <float>})
+            node_dict = item.content if isinstance(item.content, dict) else {}
             score = item.metadata.get("score", 0.0) if item.metadata else 0.0
             
             # Create Chunk object
