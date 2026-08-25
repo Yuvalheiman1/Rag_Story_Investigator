@@ -1,42 +1,45 @@
 # RAG Story Investigator
 
-A console-based Python application that answers questions about a fictional story using multiple RAG (Retrieval-Augmented Generation) strategies.
+A console app that answers questions about a fictional chat-log story, using three
+interchangeable RAG (Retrieval-Augmented Generation) strategies behind one interface.
 
 ## Overview
 
-The application loads a story transcript (XML) and lets you ask questions in an interactive CLI. You can choose between three retrieval engines:
+The app loads a story transcript (`data/story.xml`) and lets you ask questions in an
+interactive CLI. Pick one of three retrieval engines at startup:
 
-1. **Naive RAG**: local embedding similarity search
-2. **LightRAG**: LightRAG-HKU end-to-end answering
-3. **GraphRAG**: Neo4j vector index retrieval
+1. **Naive RAG**: chunk the messages, embed them locally, retrieve by cosine similarity
+2. **LightRAG**: LightRAG-HKU entity/relationship indexing and end-to-end answering
+3. **GraphRAG**: message chunks stored as Neo4j nodes, retrieved through a Neo4j vector index
 
-All engines aim to return a concise answer followed by an **Evidence** section.
+All three return a short answer followed by an **Evidence** section.
+
+Embeddings are generated locally with `sentence-transformers`, so no embedding API is
+called. OpenAI is used to write the final answer (and by LightRAG during indexing), so
+`OPENAI_API_KEY` is required for every engine.
+
+## Requirements
+
+- Python 3.11
+- An OpenAI API key
+- Docker, if you want to run Neo4j for the GraphRAG engine
 
 ## Quick Start (Docker)
 
-This runs both the app and Neo4j using Docker Compose:
+This runs both the app and Neo4j:
 
 ```bash
+cp .env.example .env    # then put your OPENAI_API_KEY in it
 docker compose up --build
 ```
 
-Neo4j Browser will be available at http://localhost:7474.
+The `.env` file is not optional here: `docker-compose.yml` declares it under `env_file`,
+so the stack will not start without it. Neo4j Browser is served at http://localhost:7474.
 
-### Environment variables (Docker)
+To change the Neo4j password, set both `NEO4J_PASSWORD` and `NEO4J_AUTH` in `.env`.
 
-Docker Compose automatically reads a `.env` file in the project root if it exists.
-At minimum, set:
-
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-If you want to change the default Neo4j password, set:
-
-```bash
-NEO4J_PASSWORD=your_password
-NEO4J_AUTH=neo4j/your_password
-```
+The first LightRAG or GraphRAG run indexes the whole story, which takes a few minutes
+and costs OpenAI tokens. Results are cached (see [Caching](#caching)).
 
 ## Local Setup (venv)
 
@@ -44,9 +47,16 @@ NEO4J_AUTH=neo4j/your_password
 
 Windows (PowerShell):
 
-```bash
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
+```
+
+macOS / Linux:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 2) Install dependencies
@@ -55,24 +65,18 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 3) Create `.env`
+The first run also downloads the `all-mpnet-base-v2` embedding model (about 420 MB).
 
-Copy the template and fill in values:
+### 3) Create `.env`
 
 ```bash
 cp .env.example .env
 ```
 
-For GraphRAG (local Neo4j), the defaults are:
+Fill in `OPENAI_API_KEY`. The Neo4j defaults in the template match the local Neo4j
+container below, so you only need to change them if you use a different password.
 
-```bash
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=password
-NEO4J_DATABASE=neo4j
-```
-
-### 4) Run Neo4j (required for GraphRAG)
+### 4) Run Neo4j (only needed for GraphRAG)
 
 ```bash
 docker run -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:5
@@ -83,6 +87,8 @@ docker run -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:5
 ```bash
 python -m src.main
 ```
+
+Optionally point it at a different transcript with `python -m src.main --story path/to/story.xml`.
 
 ## Evidence format
 
@@ -100,10 +106,11 @@ Example:
 
 ## Configuration
 
-- Application settings: `config.yaml`
-- Secrets: `.env` (loaded via `python-dotenv`)
+- Application settings: `config.yaml` (chunk size, embedding model, retrieval thresholds,
+  LLM model and fallback, which engine starts by default)
+- Secrets: `.env`, loaded with `python-dotenv`
 
-Neo4j settings can be set in both `config.yaml` and `.env`; environment variables take precedence:
+Neo4j settings appear in both `config.yaml` and `.env`; the environment variables win:
 - `NEO4J_URI`
 - `NEO4J_USERNAME`
 - `NEO4J_PASSWORD`
@@ -111,23 +118,37 @@ Neo4j settings can be set in both `config.yaml` and `.env`; environment variable
 
 ## Caching
 
-- `cache/lightrag/` stores LightRAG state (graphs, embeddings, LLM response cache). Deleting it forces re-indexing.
-- `cache/graphrag/` stores a local marker file used by GraphRAG to avoid re-ingesting.
+`cache/` is generated at runtime and is not tracked in git.
+
+- `cache/story_naive.pkl` holds the naive engine's chunk embeddings
+- `cache/lightrag/` holds LightRAG state (entity graph, KV stores, LLM response cache)
+- `cache/graphrag/` holds a marker file so GraphRAG does not re-ingest into Neo4j
+
+Delete a subdirectory to force that engine to re-index.
 
 ## Project Structure
 
 ```
 Rag_Story_Investigator/
-├── config.yaml
+├── config.yaml            # all tunable settings
 ├── requirements.txt
 ├── Dockerfile
-├── docker-compose.yml
+├── docker-compose.yml     # app + neo4j
 ├── .env.example
 ├── data/
-├── cache/
+│   └── story.xml          # the transcript being questioned
 ├── src/
-└── tests/
+│   ├── main.py            # CLI entry point
+│   ├── config_loader.py   # config parsing + engine construction
+│   ├── core/              # story loader, chunk models, embeddings, LLM client, prompts
+│   └── rag/
+│       ├── naive/         # chunker, indexer, similarity search
+│       ├── lightrag/      # LightRAG-HKU wiring
+│       └── graphrag/      # Neo4j vector retrieval
+└── tests/                 # pytest suite for the core and naive-RAG components
 ```
+
+`cache/` is created on first run.
 
 ## Testing
 
@@ -135,11 +156,15 @@ Rag_Story_Investigator/
 pytest
 ```
 
+The suite covers the pure components: story loading, chunking, the chunk indexer,
+similarity search and prompt building. The LightRAG and GraphRAG engines are thin
+wrappers over external services and are not covered.
+
 ## Troubleshooting
 
 ### GraphRAG cannot connect to Neo4j
 
-- Verify Neo4j is running (local): `docker ps`
+- Verify Neo4j is running: `docker ps`
 - Neo4j Browser: http://localhost:7474
 - Check `NEO4J_URI`:
   - Local run: `bolt://localhost:7687`
@@ -147,34 +172,21 @@ pytest
 
 ### Neo4j GraphRAG package name
 
-- The pip package is `neo4j-graphrag` and the Python module is `neo4j_graphrag`.
+The pip package is `neo4j-graphrag`; the Python module is `neo4j_graphrag`.
 
-### OpenAI API Errors
+### OpenAI API errors
+
 - Verify `OPENAI_API_KEY` is set in `.env`
-- Check API quota at [platform.openai.com](https://platform.openai.com/usage)
+- Check your quota at [platform.openai.com](https://platform.openai.com/usage)
 
 ## Acknowledgments
 
-- [OpenAI](https://openai.com) for GPT-4o-mini and embeddings
-- [LightRAG-HKU](https://github.com/HKUDS/LightRAG) for lightweight RAG framework
-- [neo4j-graphrag](https://pypi.org/project/neo4j-graphrag/) (repo: https://github.com/neo4j/neo4j-graphrag-python) for graph-based retrieval
-- [Sentence Transformers](https://www.sbert.net/) for local embedding models
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+- [OpenAI](https://openai.com) for the GPT models that generate the answers
+- [LightRAG-HKU](https://github.com/HKUDS/LightRAG) for the lightweight RAG framework
+- [neo4j-graphrag](https://github.com/neo4j/neo4j-graphrag-python) for graph-based retrieval
+- [Sentence Transformers](https://www.sbert.net/) for the local embedding models
 
 ## License
 
-[Add your license here]
-
-## Acknowledgments
-
-- Google Gemini for LLM and embedding APIs
-- LightRAG-HKU for lightweight RAG framework
-- neo4j-graphrag for graph-based retrieval
+Built as a personal learning project. No license has been attached, so all rights
+are reserved.
