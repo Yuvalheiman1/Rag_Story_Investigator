@@ -188,5 +188,5 @@ The pip package is `neo4j-graphrag`; the Python module is `neo4j_graphrag`.
 
 ## License
 
-Built as a personal learning project. No license has been attached, so all rights
-are reserved.
+Built as a personal learning project. Released under the MIT License - see the
+[LICENSE](LICENSE) file for details.
