@@ -41,7 +41,8 @@ ENV/
 .coverage
 htmlcov/
 
-# RAG storage
+# RAG storage (generated at runtime - re-indexed on first run)
+cache/
 lightrag_cache/
 nano_graphrag_cache/
 *.index
