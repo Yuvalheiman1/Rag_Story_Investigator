@@ -291,7 +291,7 @@ def main():
     print("Select RAG system:")
     print("  1. naive     - Simple embedding-based retrieval")
     print("  2. lightrag  - LightRAG (OpenAI gpt-4o-mini)")
-    print("  3. graphrag  - Nano-GraphRAG (not implemented yet)")
+    print("  3. graphrag  - Neo4j vector retrieval (requires a running Neo4j)")
     print()
     
     default_rag = config.get_default_rag_system()
